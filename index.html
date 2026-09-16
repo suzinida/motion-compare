@@ -312,13 +312,32 @@
 <script>
 /* ============================================================
    종목 설정
-   - video: 저장소의 videos 폴더에 넣은 시범 영상 파일 이름
+   - file: 저장소 videos 폴더에 넣은 시범 영상 이름 (확장자 제외)
+     예) file: '스쿼트'  →  videos/스쿼트.mp4
+     .mp4 / .MP4 / .mov / .MOV 순서로 찾아 먼저 있는 파일을 씁니다.
    - phases: 동작 단계와 단계별 기준
    - at: (선택) 시범 영상에서 그 단계가 보이는 시각(초). 적으면 '장면 보기' 버튼이 생깁니다.
    ============================================================ */
+const VIDEO_DIR = 'videos/';
 const EXERCISES = [
   {
-    id: 'lunge', name: '워킹 런지', video: 'videos/walking-lunge.mp4',
+    id: 'squat', name: '스쿼트', file: '스쿼트',
+    phases: [
+      { name: '준비', at: null, items: ['발을 어깨너비로 벌리고 발끝은 살짝 바깥을 향한다', '가슴을 펴고 시선은 앞을 본다'] },
+      { name: '앉기', at: null, items: ['엉덩이를 뒤로 빼며 앉는다', '무릎이 발끝과 같은 방향을 향한다', '엉덩이가 무릎 높이까지 내려간다', '발뒤꿈치가 바닥에서 떨어지지 않는다'] },
+      { name: '일어서기', at: null, items: ['발바닥 전체로 바닥을 밀며 일어선다', '무릎과 엉덩이를 끝까지 편다'] }
+    ]
+  },
+  {
+    id: 'lunge', name: '런지', file: '런지',
+    phases: [
+      { name: '준비', at: null, items: ['상체를 곧게 세우고 시선은 앞을 본다', '두 발을 골반 너비로 벌린다'] },
+      { name: '내려가기', at: null, items: ['한 발을 앞으로 크게 내딛는다', '앞무릎이 발끝과 같은 방향을 향한다', '뒷무릎이 바닥에 닿을 듯 내려간다', '상체가 앞으로 숙여지지 않는다'] },
+      { name: '돌아오기', at: null, items: ['앞발로 바닥을 밀어 처음 자리로 돌아온다', '돌아온 뒤 균형을 잃지 않는다'] }
+    ]
+  },
+  {
+    id: 'walking-lunge', name: '워킹 런지', file: '워킹런지',
     phases: [
       { name: '준비', at: null, items: ['상체를 곧게 세우고 시선은 앞을 본다', '두 발을 골반 너비로 벌린다'] },
       { name: '내려가기', at: null, items: ['앞무릎이 발끝과 같은 방향을 향한다', '뒷무릎이 바닥에 닿을 듯 내려간다', '상체가 앞으로 숙여지지 않는다'] },
@@ -326,32 +345,15 @@ const EXERCISES = [
     ]
   },
   {
-    id: 'snatch', name: '덤벨 스내치', video: 'videos/db-snatch.mp4',
-    phases: [
-      { name: '준비', at: null, items: ['덤벨을 두 발 사이에 둔다', '등을 곧게 펴고 엉덩이를 뒤로 뺀다'] },
-      { name: '끌어올리기', at: null, items: ['다리와 엉덩이를 힘차게 편다', '덤벨이 몸 가까이 지나간다', '팔로만 들어 올리지 않는다'] },
-      { name: '마무리', at: null, items: ['머리 위에서 팔꿈치를 끝까지 편다', '덤벨이 어깨 바로 위에 있고 몸이 곧게 선다'] },
-      { name: '내리기', at: null, items: ['등이 둥글어지지 않게 조절하며 내린다'] }
-    ]
-  },
-  {
-    id: 'stepbox', name: '스텝박스 오버', video: 'videos/step-box-over.mp4',
+    id: 'stepbox', name: '스텝박스', file: '스텝박스',
     phases: [
       { name: '오르기', at: null, items: ['발바닥 전체를 박스 위에 올린다', '무릎이 안쪽으로 모이지 않는다'] },
       { name: '박스 위', at: null, items: ['두 발로 서서 무릎과 엉덩이를 끝까지 편다'] },
-      { name: '넘어가기', at: null, items: ['반대편으로 한 발씩 조절하며 내려온다', '뛰어내리지 않는다'] }
+      { name: '내려오기', at: null, items: ['한 발씩 조절하며 내려온다', '뛰어내리지 않는다'] }
     ]
   },
   {
-    id: 'pushup', name: '푸시업', video: 'videos/push-up.mp4',
-    phases: [
-      { name: '준비', at: null, items: ['손을 어깨 바로 아래에 둔다', '머리부터 발뒤꿈치까지 일직선이다'] },
-      { name: '내려가기', at: null, items: ['가슴이 바닥 가까이 내려간다', '팔꿈치가 옆으로 크게 벌어지지 않는다'] },
-      { name: '올라오기', at: null, items: ['팔꿈치를 끝까지 편다', '엉덩이가 처지거나 들리지 않는다'] }
-    ]
-  },
-  {
-    id: 'situp', name: '싯업', video: 'videos/sit-up.mp4',
+    id: 'situp', name: '싯업', file: '싯업',
     phases: [
       { name: '준비', at: null, items: ['무릎을 세우고 발바닥을 바닥에 붙인다', '등 전체가 바닥에 닿는다'] },
       { name: '올라오기', at: null, items: ['반동 없이 배의 힘으로 일어난다', '손으로 목을 당기지 않는다', '어깨가 엉덩이 위까지 올라온다'] },
@@ -359,23 +361,40 @@ const EXERCISES = [
     ]
   },
   {
-    id: 'wallball', name: '월볼 샷', video: 'videos/wall-ball.mp4',
+    id: 'pushup', name: '푸시업', file: '푸시업',
+    phases: [
+      { name: '준비', at: null, items: ['손을 어깨 바로 아래에 둔다', '머리부터 발뒤꿈치까지 일직선이다'] },
+      { name: '내려가기', at: null, items: ['가슴이 바닥 가까이 내려간다', '팔꿈치가 옆으로 크게 벌어지지 않는다'] },
+      { name: '올라오기', at: null, items: ['팔꿈치를 끝까지 편다', '엉덩이가 처지거나 들리지 않는다'] }
+    ]
+  },
+  {
+    id: 'farmers', name: '파머스 캐리', file: '파머스캐리',
+    phases: [
+      { name: '들기', at: null, items: ['등을 곧게 편 채 다리 힘으로 든다'] },
+      { name: '걷기', at: null, items: ['어깨를 내리고 가슴을 편다', '상체가 한쪽으로 기울지 않는다', '짧고 빠른 걸음으로 걷는다'] },
+      { name: '내려놓기', at: null, items: ['무릎을 굽혀 조절하며 내려놓는다'] }
+    ]
+  },
+  {
+    id: 'wallball', name: '월볼 샷', file: '월볼샷',
     phases: [
       { name: '준비', at: null, items: ['공을 가슴 앞에 잡는다', '발을 어깨너비로 벌리고 벽과 한 걸음 떨어진다'] },
       { name: '앉기', at: null, items: ['엉덩이가 무릎 높이까지 내려간다', '무릎이 발끝과 같은 방향을 향한다', '가슴을 세운다'] },
       { name: '던지기', at: null, items: ['일어서는 힘을 이어서 공을 던진다', '팔을 끝까지 뻗어 목표 높이에 닿게 한다'] },
       { name: '받기', at: null, items: ['공을 받으며 바로 앉기로 이어간다'] }
     ]
-  },
-  {
-    id: 'farmers', name: '파머스 캐리', video: 'videos/farmers-carry.mp4',
-    phases: [
-      { name: '들기', at: null, items: ['등을 곧게 편 채 다리 힘으로 든다'] },
-      { name: '걷기', at: null, items: ['어깨를 내리고 가슴을 편다', '상체가 한쪽으로 기울지 않는다', '짧고 빠른 걸음으로 걷는다'] },
-      { name: '내려놓기', at: null, items: ['무릎을 굽혀 조절하며 내려놓는다'] }
-    ]
   }
 ];
+
+// 파일 이름 후보: 한글 조합 방식(맥에서 올린 경우 포함)과 확장자 차이를 모두 시도
+function videoCandidates(ex) {
+  const names = [...new Set([ex.file.normalize('NFC'), ex.file.normalize('NFD')])];
+  const exts = ['.mp4', '.MP4', '.mov', '.MOV'];
+  const out = [];
+  exts.forEach(e => names.forEach(n => out.push(VIDEO_DIR + encodeURIComponent(n) + e)));
+  return out;
+}
 
 (() => {
   'use strict';
@@ -428,7 +447,9 @@ const EXERCISES = [
     state.ds = 0;
     if (state.demoUrl) { URL.revokeObjectURL(state.demoUrl); state.demoUrl = null; }
     $('demoEmpty').classList.add('hidden');
-    demo.src = ex.video;
+    state.tries = videoCandidates(ex);
+    state.tryIdx = 0;
+    demo.src = state.tries[0];
     demo.load();
     if (typeof resetPanSafe === 'function') resetPanSafe('demo');
     renderExercises();
@@ -437,7 +458,15 @@ const EXERCISES = [
   }
 
   demo.addEventListener('error', () => {
-    if (!state.demoUrl) $('demoEmpty').classList.remove('hidden');
+    if (state.demoUrl) return;
+    // 다음 후보 파일 이름으로 다시 시도
+    if (state.tries && state.tryIdx < state.tries.length - 1) {
+      state.tryIdx++;
+      demo.src = state.tries[state.tryIdx];
+      demo.load();
+      return;
+    }
+    $('demoEmpty').classList.remove('hidden');
   });
   demo.addEventListener('loadedmetadata', () => { $('demoEmpty').classList.add('hidden'); refresh(); });
   me.addEventListener('loadedmetadata', refresh);
