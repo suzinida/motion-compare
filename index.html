@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1D3557">
+<title>동작 비교 프로그램</title>
+<style>
+  :root {
+    --ink: #1D2733;
+    --court: #1D3557;
+    --court-2: #274472;
+    --lane: #2F6FD0;
+    --line: #F4C21B;
+    --floor: #EDF1F5;
+    --paper: #FFFFFF;
+    --go: #1F9D5B;
+    --stop: #CF3F3B;
+    --muted: #5F6F82;
+    --rule: #D5DDE6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif;
+    background: var(--floor);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.5;
+    word-break: keep-all;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; border: none; border-radius: 10px; padding: 9px 14px; font-weight: 700; background: var(--floor); color: var(--court); }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  :focus-visible { outline: 3px solid var(--line); outline-offset: 2px; }
+  .hidden { display: none !important; }
+
+  /* 상단 */
+  header { background: var(--court); color: #fff; padding: 12px 16px 0; }
+  .head-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  header h1 { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+  header h1 small { font-weight: 500; opacity: .7; font-size: 13px; margin-left: 6px; }
+  .court-line { height: 4px; background: var(--line); margin: 10px -16px 0; }
+  .steps { display: flex; gap: 4px; margin-top: 8px; }
+  .steps button {
+    background: transparent; color: #fff; opacity: .6; border-radius: 8px 8px 0 0; padding: 8px 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .steps button b {
+    width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,.2); font-size: 12px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .steps button[aria-current="step"] { background: var(--floor); color: var(--court); opacity: 1; }
+  .steps button[aria-current="step"] b { background: var(--line); color: var(--court); }
+
+  main { padding: 14px 16px 24px; max-width: 1280px; margin: 0 auto; }
+
+  /* 종목 */
+  .ex-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
+  .ex-row button { white-space: nowrap; background: var(--paper); border: 2px solid var(--rule); padding: 7px 14px; }
+  .ex-row button[aria-pressed="true"] { background: var(--court); border-color: var(--court); color: #fff; }
+
+  /* 영상 */
+  .stage { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pane { background: #0d141c; border-radius: 12px; overflow: hidden; position: relative; aspect-ratio: 16 / 10; }
+  .pane video { width: 100%; height: 100%; object-fit: contain; display: block; background: #0d141c; }
+  .pane video { transform-origin: center center; will-change: transform; }
+  .pane.zoomed { cursor: grab; touch-action: none; }
+  .pane.zoomed:active { cursor: grabbing; }
+  .zoom-tag {
+    position: absolute; bottom: 8px; right: 8px; z-index: 2; background: rgba(244,194,27,.95); color: var(--court);
+    font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 6px; display: none;
+  }
+  .pane.zoomed .zoom-tag { display: block; }
+  .zoom-hint { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .tag {
+    position: absolute; top: 8px; left: 8px; z-index: 2; background: rgba(29,53,87,.88); color: #fff;
+    font-size: 13px; font-weight: 700; padding: 3px 10px; border-radius: 6px;
+  }
+  .tag.mine { background: rgba(244,194,27,.95); color: var(--court); }
+  .ptime { position: absolute; top: 8px; right: 8px; z-index: 2; background: rgba(0,0,0,.55); color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 6px; }
+  .empty {
+    position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; align-items: center; justify-content: center;
+    color: #A9B8C9; text-align: center; padding: 16px; font-size: 14px;
+  }
+  .empty .row { justify-content: center; }
+  .btn-main { background: var(--court); color: #fff; }
+  .btn-main:hover { background: var(--court-2); }
+  .btn-accent { background: var(--line); color: var(--court); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* 패널 */
+  .panel { background: var(--paper); border-radius: 12px; padding: 14px; margin-top: 12px; }
+  .panel h2 { font-size: 15px; font-weight: 800; color: var(--court); margin-bottom: 6px; }
+  .note { font-size: 13px; color: var(--muted); }
+  .privacy { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+
+  /* 시작 맞추기 */
+  .align { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .align .box { border: 2px solid var(--rule); border-radius: 10px; padding: 10px; }
+  .align .box h3 { font-size: 14px; font-weight: 800; margin-bottom: 6px; }
+  .align .picked { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .align .picked b { color: var(--go); }
+  input[type="range"] { width: 100%; accent-color: var(--court); height: 28px; }
+  .mini button { padding: 7px 10px; font-size: 13px; }
+
+  /* 비교 조작 */
+  .transport { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .transport .play { min-width: 92px; }
+  .seg { display: inline-flex; border: 2px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  .seg button { border-radius: 0; background: #fff; padding: 7px 11px; }
+  .seg button[aria-pressed="true"] { background: var(--court); color: #fff; }
+  .toggle[aria-pressed="true"] { background: var(--court); color: #fff; }
+  .timeline { display: flex; gap: 10px; align-items: center; margin-top: 8px; }
+  .timeline .t { font-size: 13px; color: var(--muted); min-width: 92px; text-align: right; }
+  .fine { font-size: 13px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+  .fine button { padding: 5px 9px; font-size: 12.5px; }
+
+  /* 체크리스트 */
+  .check-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .score { font-weight: 800; color: var(--court); }
+  .phases { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 10px; }
+  .phase { border: 2px solid var(--rule); border-radius: 10px; padding: 10px 12px; }
+  .phase-top { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .phase-top h3 { font-size: 14.5px; font-weight: 800; color: var(--court); }
+  .phase-top h3 span {
+    display: inline-flex; width: 20px; height: 20px; border-radius: 50%; background: var(--line);
+    font-size: 12px; align-items: center; justify-content: center; margin-right: 4px;
+  }
+  .phase-top button { padding: 4px 9px; font-size: 12.5px; }
+  .item { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; border-top: 1px dashed var(--rule); cursor: pointer; }
+  .item:first-of-type { border-top: none; }
+  .item input { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--go); flex-shrink: 0; }
+  .item.ok span { color: var(--go); font-weight: 600; }
+  textarea { width: 100%; min-height: 64px; border: 2px solid var(--rule); border-radius: 10px; padding: 8px 10px; resize: vertical; margin-top: 6px; }
+
+  /* 크게 보기 */
+  body.focus header, body.focus .ex-row, body.focus #checkPanel, body.focus .privacy { display: none; }
+  body.focus main { max-width: none; padding: 8px; }
+  body.focus .pane { aspect-ratio: auto; height: calc(100vh - 150px); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); z-index: 30;
+    background: var(--ink); color: #fff; padding: 10px 16px; border-radius: 10px; font-weight: 600; display: none;
+    max-width: calc(100% - 32px); text-align: center;
+  }
+  #toast.show { display: block; }
+
+  @media (max-width: 700px) {
+    .stage, .align { grid-template-columns: 1fr; }
+    body.focus .pane { height: calc((100vh - 190px) / 2); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <h1>동작 비교 프로그램 <small>P-JOURNEY</small></h1>
+  </div>
+  <nav class="steps" aria-label="진행 단계">
+    <button data-step="1" aria-current="step"><b>1</b>영상 준비</button>
+    <button data-step="2"><b>2</b>시작 맞추기</button>
+    <button data-step="3"><b>3</b>비교·점검</button>
+  </nav>
+</header>
+
+<main>
+  <div class="ex-row" id="exRow" role="group" aria-label="종목 선택"></div>
+
+  <div class="stage">
+    <div class="pane" id="demoPane">
+      <span class="tag">시범</span>
+      <span class="ptime num" id="demoTime"></span>
+      <video id="demo" playsinline webkit-playsinline muted preload="auto"></video>
+      <span class="zoom-tag num" data-ztag></span>
+      <div class="empty hidden" id="demoEmpty">
+        <div>이 종목의 시범 영상이 아직 없습니다.</div>
+        <div class="row"><button class="btn-accent" id="demoPickBtn">시범 영상 직접 불러오기</button></div>
+      </div>
+    </div>
+    <div class="pane" id="mePane">
+      <span class="tag mine">내 영상</span>
+      <span class="ptime num" id="meTime"></span>
+      <video id="me" playsinline webkit-playsinline muted preload="auto"></video>
+      <span class="zoom-tag num" data-ztag></span>
+      <div class="empty" id="meEmpty">
+        <div>내 동작 영상을 불러오세요</div>
+        <div class="row">
+          <button class="btn-accent" id="shootBtn">바로 촬영</button>
+          <button class="btn-main" id="pickBtn">앨범에서 선택</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <input type="file" id="pickInput" accept="video/*" hidden>
+  <input type="file" id="shootInput" accept="video/*" capture="environment" hidden>
+  <input type="file" id="demoInput" accept="video/*" hidden>
+
+  <!-- 1단계 -->
+  <section class="panel" data-panel="1">
+    <h2>영상 준비</h2>
+    <p class="note">종목을 고르고, 시범 영상과 같은 방향에서 찍은 내 동작 영상을 불러옵니다. 옆에서 찍으면 무릎과 허리 각도를 보기 쉽습니다.</p>
+    <div class="row" style="margin-top:10px">
+      <button id="changeMeBtn" class="hidden">내 영상 바꾸기</button>
+      <button class="btn-main" id="toStep2" disabled>다음: 시작 맞추기</button>
+    </div>
+    <p class="privacy">영상은 이 기기 안에서만 재생되며 어디에도 저장하거나 전송하지 않습니다.</p>
+  </section>
+
+  <!-- 2단계 -->
+  <section class="panel hidden" data-panel="2">
+    <h2>시작 맞추기</h2>
+    <p class="note">두 영상에서 같은 순간(예: 첫 동작이 시작되는 순간)을 찾아 각각 시작점으로 지정합니다. 영상 길이가 달라도 이 순간부터 함께 움직입니다.</p>
+    <div class="align">
+      <div class="box" data-which="demo">
+        <h3>시범 영상</h3>
+        <input type="range" min="0" max="1" step="0.01" value="0" aria-label="시범 영상 위치">
+        <div class="row mini">
+          <button data-act="back">◀ 한 장면</button>
+          <button data-act="play">재생</button>
+          <button data-act="fwd">한 장면 ▶</button>
+          <button class="btn-accent" data-act="mark">여기를 시작점으로</button>
+        </div>
+        <div class="picked">시작점: <b class="num">0.00초</b></div>
+      </div>
+      <div class="box" data-which="me">
+        <h3>내 영상</h3>
+        <input type="range" min="0" max="1" step="0.01" value="0" aria-label="내 영상 위치">
+        <div class="row mini">
+          <button data-act="back">◀ 한 장면</button>
+          <button data-act="play">재생</button>
+          <button data-act="fwd">한 장면 ▶</button>
+          <button class="btn-accent" data-act="mark">여기를 시작점으로</button>
+        </div>
+        <div class="picked">시작점: <b class="num">0.00초</b></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn-main" id="toStep3">다음: 비교·점검</button>
+    </div>
+  </section>
+
+  <!-- 3단계 -->
+  <section class="panel hidden" data-panel="3">
+    <div class="transport">
+      <button class="btn-main play" id="playBtn">재생</button>
+      <button id="backBtn" title="한 장면 뒤로">◀ 한 장면</button>
+      <button id="fwdBtn" title="한 장면 앞으로">한 장면 ▶</button>
+      <div class="seg" role="group" aria-label="재생 속도">
+        <button data-rate="0.25">0.25배</button>
+        <button data-rate="0.5" aria-pressed="true">0.5배</button>
+        <button data-rate="1">1배</button>
+      </div>
+      <div class="seg" role="group" aria-label="확대">
+        <button data-zoom="1" aria-pressed="true">확대 없음</button>
+        <button data-zoom="1.5">1.5배</button>
+        <button data-zoom="2">2배</button>
+        <button data-zoom="3">3배</button>
+      </div>
+      <button class="toggle" id="mirrorBtn" aria-pressed="false">내 영상 좌우 반전</button>
+      <button id="focusBtn">크게 보기</button>
+    </div>
+    <p class="zoom-hint" id="zoomHint">확대한 뒤 각 영상을 손가락으로 끌어 보고 싶은 관절(무릎, 팔꿈치 등)을 가운데에 두세요. 두 손가락으로 벌리거나 모아도 확대됩니다. 두 번 누르면 원래 위치로 돌아갑니다.</p>
+    <div class="timeline">
+      <input type="range" id="scrub" min="0" max="1" step="0.01" value="0" aria-label="함께 이동">
+      <span class="t num" id="tLabel">0.0 / 0.0초</span>
+    </div>
+    <div class="fine">
+      <span>내 영상이 조금 어긋나면:</span>
+      <button data-nudge="-0.1">내 영상 0.1초 되감기</button>
+      <button data-nudge="0.1">내 영상 0.1초 빨리 감기</button>
+      <span class="num" id="offsetLabel"></span>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="checkPanel">
+    <div class="check-head">
+      <h2 id="checkTitle">동작 기준 점검</h2>
+      <span class="score num" id="score"></span>
+    </div>
+    <p class="note">단계마다 시범과 내 동작을 비교하고, 기준을 지켰으면 체크합니다. '장면 보기'를 누르면 두 영상이 그 단계로 이동해 멈춥니다.</p>
+    <div class="phases" id="phases"></div>
+    <div style="margin-top:12px">
+      <label for="memo" style="font-weight:800;color:var(--court);font-size:14px">내가 찾은 차이와 다음에 고칠 점</label>
+      <textarea id="memo" placeholder="예: 내려갈 때 앞무릎이 안쪽으로 모인다. 다음에는 무릎을 발끝 방향으로 보낸다."></textarea>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button class="btn-main" id="copyBtn">점검 결과 복사 (패들렛에 붙여넣기)</button>
+      <button id="resetCheckBtn">체크 초기화</button>
+    </div>
+  </section>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script>
+/* ============================================================
+   종목 설정
+   - video: 저장소의 videos 폴더에 넣은 시범 영상 파일 이름
+   - phases: 동작 단계와 단계별 기준
+   - at: (선택) 시범 영상에서 그 단계가 보이는 시각(초). 적으면 '장면 보기' 버튼이 생깁니다.
+   ============================================================ */
+const EXERCISES = [
+  {
+    id: 'lunge', name: '워킹 런지', video: 'videos/walking-lunge.mp4',
+    phases: [
+      { name: '준비', at: null, items: ['상체를 곧게 세우고 시선은 앞을 본다', '두 발을 골반 너비로 벌린다'] },
+      { name: '내려가기', at: null, items: ['앞무릎이 발끝과 같은 방향을 향한다', '뒷무릎이 바닥에 닿을 듯 내려간다', '상체가 앞으로 숙여지지 않는다'] },
+      { name: '올라오기', at: null, items: ['앞발 뒤꿈치로 밀며 일어선다', '다음 걸음으로 균형을 잃지 않고 이어간다'] }
+    ]
+  },
+  {
+    id: 'snatch', name: '덤벨 스내치', video: 'videos/db-snatch.mp4',
+    phases: [
+      { name: '준비', at: null, items: ['덤벨을 두 발 사이에 둔다', '등을 곧게 펴고 엉덩이를 뒤로 뺀다'] },
+      { name: '끌어올리기', at: null, items: ['다리와 엉덩이를 힘차게 편다', '덤벨이 몸 가까이 지나간다', '팔로만 들어 올리지 않는다'] },
+      { name: '마무리', at: null, items: ['머리 위에서 팔꿈치를 끝까지 편다', '덤벨이 어깨 바로 위에 있고 몸이 곧게 선다'] },
+      { name: '내리기', at: null, items: ['등이 둥글어지지 않게 조절하며 내린다'] }
+    ]
+  },
+  {
+    id: 'stepbox', name: '스텝박스 오버', video: 'videos/step-box-over.mp4',
+    phases: [
+      { name: '오르기', at: null, items: ['발바닥 전체를 박스 위에 올린다', '무릎이 안쪽으로 모이지 않는다'] },
+      { name: '박스 위', at: null, items: ['두 발로 서서 무릎과 엉덩이를 끝까지 편다'] },
+      { name: '넘어가기', at: null, items: ['반대편으로 한 발씩 조절하며 내려온다', '뛰어내리지 않는다'] }
+    ]
+  },
+  {
+    id: 'pushup', name: '푸시업', video: 'videos/push-up.mp4',
+    phases: [
+      { name: '준비', at: null, items: ['손을 어깨 바로 아래에 둔다', '머리부터 발뒤꿈치까지 일직선이다'] },
+      { name: '내려가기', at: null, items: ['가슴이 바닥 가까이 내려간다', '팔꿈치가 옆으로 크게 벌어지지 않는다'] },
+      { name: '올라오기', at: null, items: ['팔꿈치를 끝까지 편다', '엉덩이가 처지거나 들리지 않는다'] }
+    ]
+  },
+  {
+    id: 'situp', name: '싯업', video: 'videos/sit-up.mp4',
+    phases: [
+      { name: '준비', at: null, items: ['무릎을 세우고 발바닥을 바닥에 붙인다', '등 전체가 바닥에 닿는다'] },
+      { name: '올라오기', at: null, items: ['반동 없이 배의 힘으로 일어난다', '손으로 목을 당기지 않는다', '어깨가 엉덩이 위까지 올라온다'] },
+      { name: '내려가기', at: null, items: ['등이 바닥에 닿을 때까지 천천히 내려간다'] }
+    ]
+  },
+  {
+    id: 'wallball', name: '월볼 샷', video: 'videos/wall-ball.mp4',
+    phases: [
+      { name: '준비', at: null, items: ['공을 가슴 앞에 잡는다', '발을 어깨너비로 벌리고 벽과 한 걸음 떨어진다'] },
+      { name: '앉기', at: null, items: ['엉덩이가 무릎 높이까지 내려간다', '무릎이 발끝과 같은 방향을 향한다', '가슴을 세운다'] },
+      { name: '던지기', at: null, items: ['일어서는 힘을 이어서 공을 던진다', '팔을 끝까지 뻗어 목표 높이에 닿게 한다'] },
+      { name: '받기', at: null, items: ['공을 받으며 바로 앉기로 이어간다'] }
+    ]
+  },
+  {
+    id: 'farmers', name: '파머스 캐리', video: 'videos/farmers-carry.mp4',
+    phases: [
+      { name: '들기', at: null, items: ['등을 곧게 편 채 다리 힘으로 든다'] },
+      { name: '걷기', at: null, items: ['어깨를 내리고 가슴을 편다', '상체가 한쪽으로 기울지 않는다', '짧고 빠른 걸음으로 걷는다'] },
+      { name: '내려놓기', at: null, items: ['무릎을 굽혀 조절하며 내려놓는다'] }
+    ]
+  }
+];
+
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const demo = $('demo');
+  const me = $('me');
+  const FRAME = 1 / 30;
+  let resetPanSafe = null;
+
+  const state = {
+    ex: EXERCISES[0],
+    step: 1,
+    demoUrl: null,      // 직접 불러온 시범 영상
+    meUrl: null,
+    ds: 0,              // 시범 영상 시작점
+    ms: 0,              // 내 영상 시작점
+    rate: 0.5,
+    playing: false,
+    checks: {}          // 종목별 체크 상태
+  };
+
+  let toastTimer = null;
+  function toast(msg) {
+    const el = $('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+  }
+  const sec = (v, d = 1) => (isFinite(v) ? v : 0).toFixed(d);
+  const ready = (v) => v.readyState >= 1 && isFinite(v.duration) && v.duration > 0;
+
+  // ------------------------------------------------------------
+  // 종목
+  // ------------------------------------------------------------
+  function renderExercises() {
+    $('exRow').innerHTML = '';
+    EXERCISES.forEach(ex => {
+      const b = document.createElement('button');
+      b.textContent = ex.name;
+      b.setAttribute('aria-pressed', String(ex === state.ex));
+      b.addEventListener('click', () => selectExercise(ex));
+      $('exRow').appendChild(b);
+    });
+  }
+
+  function selectExercise(ex) {
+    pauseAll();
+    state.ex = ex;
+    state.ds = 0;
+    if (state.demoUrl) { URL.revokeObjectURL(state.demoUrl); state.demoUrl = null; }
+    $('demoEmpty').classList.add('hidden');
+    demo.src = ex.video;
+    demo.load();
+    if (typeof resetPanSafe === 'function') resetPanSafe('demo');
+    renderExercises();
+    renderChecklist();
+    updateMarks();
+  }
+
+  demo.addEventListener('error', () => {
+    if (!state.demoUrl) $('demoEmpty').classList.remove('hidden');
+  });
+  demo.addEventListener('loadedmetadata', () => { $('demoEmpty').classList.add('hidden'); refresh(); });
+  me.addEventListener('loadedmetadata', refresh);
+
+  // ------------------------------------------------------------
+  // 영상 불러오기
+  // ------------------------------------------------------------
+  function loadMine(file) {
+    if (!file) return;
+    if (file.type && !file.type.startsWith('video/')) { toast('영상 파일을 선택하세요'); return; }
+    pauseAll();
+    if (state.meUrl) URL.revokeObjectURL(state.meUrl);
+    state.meUrl = URL.createObjectURL(file);
+    state.ms = 0;
+    me.src = state.meUrl;
+    me.load();
+    if (typeof resetPanSafe === 'function') resetPanSafe('me');
+    $('meEmpty').classList.add('hidden');
+    $('changeMeBtn').classList.remove('hidden');
+    $('toStep2').disabled = false;
+    updateMarks();
+  }
+  $('pickBtn').addEventListener('click', () => $('pickInput').click());
+  $('changeMeBtn').addEventListener('click', () => $('pickInput').click());
+  $('shootBtn').addEventListener('click', () => $('shootInput').click());
+  $('pickInput').addEventListener('change', e => { loadMine(e.target.files[0]); e.target.value = ''; });
+  $('shootInput').addEventListener('change', e => { loadMine(e.target.files[0]); e.target.value = ''; });
+  me.addEventListener('error', () => {
+    if (state.meUrl) toast('이 영상은 이 브라우저에서 재생할 수 없습니다. 다른 영상으로 시도하세요');
+  });
+
+  $('demoPickBtn').addEventListener('click', () => $('demoInput').click());
+  $('demoInput').addEventListener('change', e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (state.demoUrl) URL.revokeObjectURL(state.demoUrl);
+    state.demoUrl = URL.createObjectURL(f);
+    state.ds = 0;
+    demo.src = state.demoUrl;
+    demo.load();
+  });
+
+  // ------------------------------------------------------------
+  // 단계 이동
+  // ------------------------------------------------------------
+  function goStep(n) {
+    if (n > 1 && !state.meUrl) { toast('먼저 내 영상을 불러오세요'); n = 1; }
+    if (n > 1 && !ready(demo)) { toast('시범 영상이 준비되지 않았습니다'); n = 1; }
+    pauseAll();
+    state.step = n;
+    document.querySelectorAll('.steps button').forEach(b => {
+      if (+b.dataset.step === n) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('[data-panel]').forEach(p => p.classList.toggle('hidden', +p.dataset.panel !== n));
+    $('checkPanel').classList.toggle('hidden', n !== 3);
+    if (n === 2) syncAlignSliders();
+    if (n === 3) { seekRel(0); refresh(); }
+    if (n !== 3) setFocus(false);
+  }
+  document.querySelectorAll('.steps button').forEach(b => b.addEventListener('click', () => goStep(+b.dataset.step)));
+  $('toStep2').addEventListener('click', () => goStep(2));
+  $('toStep3').addEventListener('click', () => goStep(3));
+
+  // ------------------------------------------------------------
+  // 2단계: 각각 움직여 시작점 지정
+  // ------------------------------------------------------------
+  const boxes = {
+    demo: document.querySelector('.align [data-which="demo"]'),
+    me: document.querySelector('.align [data-which="me"]')
+  };
+  const vids = { demo, me };
+
+  function syncAlignSliders() {
+    ['demo', 'me'].forEach(k => {
+      const v = vids[k], r = boxes[k].querySelector('input');
+      r.max = ready(v) ? v.duration : 1;
+      r.value = v.currentTime || 0;
+    });
+  }
+  function updateMarks() {
+    boxes.demo.querySelector('.picked b').textContent = sec(state.ds, 2) + '초';
+    boxes.me.querySelector('.picked b').textContent = sec(state.ms, 2) + '초';
+    const off = state.ms - state.ds;
+    $('offsetLabel').textContent = `(시작점 차이 ${off >= 0 ? '+' : ''}${sec(off, 2)}초)`;
+  }
+
+  ['demo', 'me'].forEach(k => {
+    const v = vids[k], box = boxes[k], range = box.querySelector('input');
+    range.addEventListener('input', () => { v.pause(); v.currentTime = +range.value; });
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+      if (!ready(v)) return;
+      const act = b.dataset.act;
+      if (act === 'play') {
+        if (v.paused) { v.playbackRate = 1; v.play().catch(() => {}); } else v.pause();
+      } else if (act === 'back' || act === 'fwd') {
+        v.pause();
+        v.currentTime = Math.min(v.duration, Math.max(0, v.currentTime + (act === 'fwd' ? FRAME : -FRAME)));
+      } else if (act === 'mark') {
+        v.pause();
+        if (k === 'demo') state.ds = v.currentTime; else state.ms = v.currentTime;
+        updateMarks();
+        toast(`${k === 'demo' ? '시범' : '내'} 영상 시작점을 ${sec(v.currentTime, 2)}초로 정했습니다`);
+      }
+    }));
+    v.addEventListener('play', () => { if (state.step === 2) box.querySelector('[data-act="play"]').textContent = '멈춤'; });
+    v.addEventListener('pause', () => { box.querySelector('[data-act="play"]').textContent = '재생'; });
+  });
+
+  // ------------------------------------------------------------
+  // 3단계: 함께 재생
+  // ------------------------------------------------------------
+  function span() {
+    if (!ready(demo) || !ready(me)) return 0;
+    return Math.max(0, Math.min(demo.duration - state.ds, me.duration - state.ms));
+  }
+  function rel() { return Math.max(0, demo.currentTime - state.ds); }
+
+  function seekRel(t) {
+    const L = span();
+    t = Math.min(Math.max(0, t), L);
+    if (ready(demo)) demo.currentTime = state.ds + t;
+    if (ready(me)) me.currentTime = state.ms + t;
+    showTime(t, L);
+  }
+
+  function showTime(t, L) {
+    $('scrub').max = L || 1;
+    $('scrub').value = t;
+    $('tLabel').textContent = `${sec(t)} / ${sec(L)}초`;
+  }
+
+  function pauseAll() {
+    demo.pause();
+    me.pause();
+    state.playing = false;
+    $('playBtn').textContent = '재생';
+  }
+
+  async function playAll() {
+    const L = span();
+    if (!L) { toast('두 영상이 모두 준비되어야 합니다'); return; }
+    if (rel() >= L - 0.05) seekRel(0);
+    else me.currentTime = state.ms + rel();
+    demo.playbackRate = me.playbackRate = state.rate;
+    state.playing = true;
+    $('playBtn').textContent = '멈춤';
+    try { await Promise.all([demo.play(), me.play()]); }
+    catch (e) { pauseAll(); toast('재생하지 못했습니다. 다시 눌러 주세요'); }
+  }
+
+  $('playBtn').addEventListener('click', () => (state.playing ? pauseAll() : playAll()));
+  function stepFrame(dir) {
+    pauseAll();
+    seekRel(rel() + dir * FRAME);
+  }
+  $('backBtn').addEventListener('click', () => stepFrame(-1));
+  $('fwdBtn').addEventListener('click', () => stepFrame(1));
+  $('scrub').addEventListener('input', e => { pauseAll(); seekRel(+e.target.value); });
+
+  document.querySelectorAll('[data-rate]').forEach(b => b.addEventListener('click', () => {
+    state.rate = +b.dataset.rate;
+    demo.playbackRate = me.playbackRate = state.rate;
+    document.querySelectorAll('[data-rate]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  }));
+
+  // ------------------------------------------------------------
+  // 확대 관찰: 두 영상을 같은 배율로 확대하고, 위치는 영상마다 따로 옮김
+  // ------------------------------------------------------------
+  const view = {
+    zoom: 1,
+    mirror: false,
+    demo: { x: 0, y: 0 },
+    me: { x: 0, y: 0 }
+  };
+  const panes = { demo: $('demoPane'), me: $('mePane') };
+
+  function clampPan(k) {
+    const pane = panes[k];
+    const maxX = (pane.clientWidth * (view.zoom - 1)) / 2;
+    const maxY = (pane.clientHeight * (view.zoom - 1)) / 2;
+    view[k].x = Math.max(-maxX, Math.min(maxX, view[k].x));
+    view[k].y = Math.max(-maxY, Math.min(maxY, view[k].y));
+  }
+  function applyView() {
+    ['demo', 'me'].forEach(k => {
+      clampPan(k);
+      const flip = k === 'me' && view.mirror ? ' scaleX(-1)' : '';
+      vids[k].style.transform = `translate(${view[k].x}px, ${view[k].y}px) scale(${view.zoom})${flip}`;
+      panes[k].classList.toggle('zoomed', view.zoom > 1.01);
+      panes[k].querySelector('[data-ztag]').textContent = `${view.zoom.toFixed(1)}배`;
+    });
+    document.querySelectorAll('[data-zoom]').forEach(b =>
+      b.setAttribute('aria-pressed', String(Math.abs(+b.dataset.zoom - view.zoom) < 0.05)));
+  }
+  function setZoom(z, keepPan) {
+    const old = view.zoom;
+    view.zoom = Math.min(4, Math.max(1, z));
+    ['demo', 'me'].forEach(k => {
+      if (keepPan && old > 0) { view[k].x *= view.zoom / old; view[k].y *= view.zoom / old; }
+      else if (!keepPan) { view[k].x = 0; view[k].y = 0; }
+    });
+    applyView();
+  }
+  function resetPan(k) { view[k].x = 0; view[k].y = 0; applyView(); }
+
+  document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () => setZoom(+b.dataset.zoom, true)));
+
+  $('mirrorBtn').addEventListener('click', () => {
+    view.mirror = !view.mirror;
+    view.me.x = -view.me.x;   // 반전해도 보던 관절이 화면에 남도록
+    $('mirrorBtn').setAttribute('aria-pressed', String(view.mirror));
+    applyView();
+  });
+
+  // 끌어서 옮기기, 두 손가락으로 확대
+  ['demo', 'me'].forEach(k => {
+    const pane = panes[k];
+    const pts = new Map();
+    let last = null, pinchStart = null, lastTap = 0, downAt = null, moved = 0;
+    pane.addEventListener('pointerdown', e => {
+      if (e.target.closest('button')) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      try { pane.setPointerCapture(e.pointerId); } catch (err) {}
+      if (pts.size === 1) {
+        last = { x: e.clientX, y: e.clientY };
+        downAt = Date.now();
+        moved = 0;
+      } else if (pts.size === 2) {
+        const [a, b] = [...pts.values()];
+        pinchStart = { d: Math.hypot(a.x - b.x, a.y - b.y), z: view.zoom };
+      }
+    });
+    pane.addEventListener('pointermove', e => {
+      if (!pts.has(e.pointerId)) return;
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 2 && pinchStart) {
+        const [a, b] = [...pts.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinchStart.d > 0) setZoom(pinchStart.z * (d / pinchStart.d), true);
+      } else if (pts.size === 1 && last && view.zoom > 1.01) {
+        moved += Math.abs(e.clientX - last.x) + Math.abs(e.clientY - last.y);
+        view[k].x += e.clientX - last.x;
+        view[k].y += e.clientY - last.y;
+        last = { x: e.clientX, y: e.clientY };
+        applyView();
+      }
+    });
+    const end = e => {
+      // 움직이지 않고 짧게 누른 것만 '누르기'로 보고, 두 번 누르면 위치 초기화
+      if (pts.size === 1 && downAt && moved < 8 && Date.now() - downAt < 250) {
+        const now = Date.now();
+        if (now - lastTap < 350 && view.zoom > 1.01) { resetPan(k); lastTap = 0; }
+        else lastTap = now;
+      }
+      pts.delete(e.pointerId);
+      if (pts.size < 2) pinchStart = null;
+      if (pts.size === 1) { const p = [...pts.values()][0]; last = { x: p.x, y: p.y }; }
+      if (pts.size === 0) last = null;
+    };
+    pane.addEventListener('pointerup', end);
+    pane.addEventListener('pointercancel', end);
+    // PC: 마우스 휠로 확대
+    pane.addEventListener('wheel', e => {
+      if (state.step !== 3) return;
+      e.preventDefault();
+      setZoom(view.zoom * (e.deltaY < 0 ? 1.1 : 1 / 1.1), true);
+    }, { passive: false });
+  });
+  window.addEventListener('resize', applyView);
+  resetPanSafe = (k) => resetPan(k);
+
+  document.querySelectorAll('[data-nudge]').forEach(b => b.addEventListener('click', () => {
+    const t = rel();
+    state.ms = Math.max(0, state.ms + (+b.dataset.nudge));
+    updateMarks();
+    seekRel(t);
+  }));
+
+  function setFocus(on) {
+    document.body.classList.toggle('focus', on);
+    $('focusBtn').textContent = on ? '크게 보기 끄기' : '크게 보기';
+  }
+  $('focusBtn').addEventListener('click', () => setFocus(!document.body.classList.contains('focus')));
+
+  // 재생 중 맞춤: 시범 영상을 기준으로 내 영상 위치를 보정
+  function loop() {
+    if (state.step === 3) {
+      const L = span();
+      const t = rel();
+      if (state.playing) {
+        if (t >= L || demo.ended || me.ended) {
+          pauseAll();
+          seekRel(L);
+        } else {
+          const drift = me.currentTime - (state.ms + t);
+          if (Math.abs(drift) > 0.12 && !me.seeking) me.currentTime = state.ms + t;
+        }
+      }
+      showTime(Math.min(t, L), L);
+    }
+    ['demo', 'me'].forEach(k => {
+      const v = vids[k];
+      $(k + 'Time').textContent = ready(v) ? `${sec(v.currentTime)}초` : '';
+      if (state.step === 2 && !v.paused) boxes[k].querySelector('input').value = v.currentTime;
+    });
+    requestAnimationFrame(loop);
+  }
+  function refresh() { if (state.step === 2) syncAlignSliders(); }
+
+  // 키보드: 스페이스 재생, 좌우 화살표 한 장면
+  document.addEventListener('keydown', e => {
+    if (state.step !== 3 || /INPUT|TEXTAREA/.test(e.target.tagName) && e.target.type !== 'range') return;
+    if (e.key === ' ') { e.preventDefault(); state.playing ? pauseAll() : playAll(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); stepFrame(-1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); stepFrame(1); }
+    else if (e.key === 'Escape') setFocus(false);
+    else if (e.key === '+' || e.key === '=') setZoom(view.zoom + 0.5, true);
+    else if (e.key === '-') setZoom(view.zoom - 0.5, true);
+  });
+
+  // ------------------------------------------------------------
+  // 체크리스트
+  // ------------------------------------------------------------
+  function checksFor(ex) {
+    if (!state.checks[ex.id]) state.checks[ex.id] = { done: {}, memo: '' };
+    return state.checks[ex.id];
+  }
+  function allItems(ex) {
+    const out = [];
+    ex.phases.forEach((p, pi) => p.items.forEach((it, ii) => out.push({ key: `${pi}-${ii}`, phase: p.name, text: it })));
+    return out;
+  }
+
+  function renderChecklist() {
+    const ex = state.ex;
+    const c = checksFor(ex);
+    $('checkTitle').textContent = `${ex.name} 동작 기준 점검`;
+    const box = $('phases');
+    box.innerHTML = '';
+    ex.phases.forEach((p, pi) => {
+      const el = document.createElement('div');
+      el.className = 'phase';
+      el.innerHTML = `<div class="phase-top"><h3><span>${pi + 1}</span></h3></div>`;
+      el.querySelector('h3').appendChild(document.createTextNode(p.name));
+      if (p.at != null) {
+        const b = document.createElement('button');
+        b.textContent = '장면 보기';
+        b.addEventListener('click', () => { pauseAll(); seekRel(p.at - state.ds); });
+        el.querySelector('.phase-top').appendChild(b);
+      }
+      p.items.forEach((it, ii) => {
+        const key = `${pi}-${ii}`;
+        const lab = document.createElement('label');
+        lab.className = 'item' + (c.done[key] ? ' ok' : '');
+        lab.innerHTML = '<input type="checkbox"><span></span>';
+        lab.querySelector('span').textContent = it;
+        const cb = lab.querySelector('input');
+        cb.checked = !!c.done[key];
+        cb.addEventListener('change', () => {
+          c.done[key] = cb.checked;
+          lab.classList.toggle('ok', cb.checked);
+          updateScore();
+        });
+        el.appendChild(lab);
+      });
+      box.appendChild(el);
+    });
+    $('memo').value = c.memo;
+    updateScore();
+  }
+  function updateScore() {
+    const items = allItems(state.ex);
+    const c = checksFor(state.ex);
+    const n = items.filter(i => c.done[i.key]).length;
+    $('score').textContent = `기준 ${items.length}개 중 ${n}개 충족`;
+  }
+  $('memo').addEventListener('input', e => { checksFor(state.ex).memo = e.target.value; });
+  $('resetCheckBtn').addEventListener('click', () => {
+    if (!confirm('체크와 메모를 모두 지울까요?')) return;
+    state.checks[state.ex.id] = { done: {}, memo: '' };
+    renderChecklist();
+  });
+
+  $('copyBtn').addEventListener('click', async () => {
+    const ex = state.ex;
+    const c = checksFor(ex);
+    const items = allItems(ex);
+    const ok = items.filter(i => c.done[i.key]);
+    const miss = items.filter(i => !c.done[i.key]);
+    const lines = [
+      `[동작 비교] ${ex.name} · 기준 ${items.length}개 중 ${ok.length}개 충족`,
+      '',
+      '지킨 기준',
+      ...(ok.length ? ok.map(i => `- (${i.phase}) ${i.text}`) : ['- 없음']),
+      '',
+      '다시 볼 기준',
+      ...(miss.length ? miss.map(i => `- (${i.phase}) ${i.text}`) : ['- 없음']),
+      '',
+      '내가 찾은 차이와 다음에 고칠 점',
+      c.memo.trim() || '-'
+    ];
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('복사했습니다. 패들렛에 붙여넣으세요');
+    } catch (e) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      const done = document.execCommand && document.execCommand('copy');
+      ta.remove();
+      toast(done ? '복사했습니다. 패들렛에 붙여넣으세요' : '복사하지 못했습니다');
+    }
+  });
+
+  // ------------------------------------------------------------
+  // 시작
+  // ------------------------------------------------------------
+  renderExercises();
+  selectExercise(state.ex);
+  updateMarks();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
