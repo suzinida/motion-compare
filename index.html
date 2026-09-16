@@ -148,6 +148,19 @@
   }
   #toast.show { display: block; }
 
+  /* 휴대폰: 비교 단계에서는 두 영상을 위에 고정하고 조작부만 스크롤 */
+  @media (max-width: 700px) {
+    body[data-step="3"]:not(.focus) .stage {
+      position: sticky; top: 0; z-index: 5; background: var(--floor); padding: 4px 0 8px; margin: 0 -4px; padding-left: 4px; padding-right: 4px;
+    }
+    body[data-step="3"]:not(.focus) .pane { aspect-ratio: auto; height: 27vh; height: 27svh; }
+  }
+  @media (max-height: 500px) and (orientation: landscape) {
+    body[data-step="3"]:not(.focus) .stage {
+      position: sticky; top: 0; z-index: 5; background: var(--floor); padding: 4px 0 8px;
+    }
+    body[data-step="3"]:not(.focus) .pane { aspect-ratio: auto; height: 52vh; height: 52svh; }
+  }
   @media (max-width: 700px) {
     .stage, .align { grid-template-columns: 1fr; }
     body.focus .pane { height: calc((100vh - 190px) / 2); }
@@ -476,6 +489,7 @@ const EXERCISES = [
     if (n > 1 && !ready(demo)) { toast('시범 영상이 준비되지 않았습니다'); n = 1; }
     pauseAll();
     state.step = n;
+    document.body.dataset.step = String(n);
     document.querySelectorAll('.steps button').forEach(b => {
       if (+b.dataset.step === n) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current');
     });
