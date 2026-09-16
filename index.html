@@ -312,13 +312,14 @@
 <script>
 /* ============================================================
    종목 설정
-   - file: 저장소 videos 폴더에 넣은 시범 영상 이름 (확장자 제외)
-     예) file: '스쿼트'  →  videos/스쿼트.mp4
-     .mp4 / .MP4 / .mov / .MOV 순서로 찾아 먼저 있는 파일을 씁니다.
+   - file: 저장소에 올린 시범 영상 이름 (확장자 제외)
+     예) file: '스쿼트'  →  스쿼트.mp4
+     저장소 맨 위와 videos 폴더를 모두 찾고,
+     .mp4 / .MP4 / .mov / .MOV 순서로 먼저 있는 파일을 씁니다.
    - phases: 동작 단계와 단계별 기준
    - at: (선택) 시범 영상에서 그 단계가 보이는 시각(초). 적으면 '장면 보기' 버튼이 생깁니다.
    ============================================================ */
-const VIDEO_DIR = 'videos/';
+const VIDEO_DIRS = ['', 'videos/'];
 const EXERCISES = [
   {
     id: 'squat', name: '스쿼트', file: '스쿼트',
@@ -392,7 +393,7 @@ function videoCandidates(ex) {
   const names = [...new Set([ex.file.normalize('NFC'), ex.file.normalize('NFD')])];
   const exts = ['.mp4', '.MP4', '.mov', '.MOV'];
   const out = [];
-  exts.forEach(e => names.forEach(n => out.push(VIDEO_DIR + encodeURIComponent(n) + e)));
+  VIDEO_DIRS.forEach(d => exts.forEach(e => names.forEach(n => out.push(d + encodeURIComponent(n) + e))));
   return out;
 }
 
