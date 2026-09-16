@@ -61,6 +61,10 @@
   .ex-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
   .ex-row button { white-space: nowrap; background: var(--paper); border: 2px solid var(--rule); padding: 7px 14px; }
   .ex-row button[aria-pressed="true"] { background: var(--court); border-color: var(--court); color: #fff; }
+  .sub-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin: -4px 0 12px; }
+  .sub-row button { white-space: nowrap; background: var(--paper); border: 2px dashed var(--rule); padding: 5px 12px; font-size: 14px; }
+  .sub-row button[aria-pressed="true"] { background: var(--line); border: 2px solid var(--line); color: var(--court); }
+  .sample-note { font-size: 12.5px; color: #A9B8C9; }
 
   /* 영상 */
   .stage { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -137,7 +141,7 @@
   textarea { width: 100%; min-height: 64px; border: 2px solid var(--rule); border-radius: 10px; padding: 8px 10px; resize: vertical; margin-top: 6px; }
 
   /* 크게 보기 */
-  body.focus header, body.focus .ex-row, body.focus #checkPanel, body.focus .privacy { display: none; }
+  body.focus header, body.focus .ex-row, body.focus .sub-row, body.focus #checkPanel, body.focus .privacy { display: none; }
   body.focus main { max-width: none; padding: 8px; }
   body.focus .pane { aspect-ratio: auto; height: calc(100vh - 150px); }
 
@@ -182,6 +186,7 @@
 
 <main>
   <div class="ex-row" id="exRow" role="group" aria-label="종목 선택"></div>
+  <div class="sub-row hidden" id="subRow" role="group" aria-label="세부 동작 선택"></div>
 
   <div class="stage">
     <div class="pane" id="demoPane">
@@ -195,7 +200,7 @@
       </div>
     </div>
     <div class="pane" id="mePane">
-      <span class="tag mine">내 영상</span>
+      <span class="tag mine" id="meTag">내 영상</span>
       <span class="ptime num" id="meTime"></span>
       <video id="me" playsinline webkit-playsinline muted preload="auto"></video>
       <span class="zoom-tag num" data-ztag></span>
@@ -205,6 +210,8 @@
           <button class="btn-accent" id="shootBtn">바로 촬영</button>
           <button class="btn-main" id="pickBtn">앨범에서 선택</button>
         </div>
+        <button id="sampleBtn">영상 없이 체험하기</button>
+        <div class="sample-note">시범 영상을 내 영상 자리에 넣어 비교 과정을 미리 볼 수 있어요</div>
       </div>
     </div>
   </div>
@@ -218,6 +225,7 @@
     <p class="note">종목을 고르고, 시범 영상과 같은 방향에서 찍은 내 동작 영상을 불러옵니다. 옆에서 찍으면 무릎과 허리 각도를 보기 쉽습니다.</p>
     <div class="row" style="margin-top:10px">
       <button id="changeMeBtn" class="hidden">내 영상 바꾸기</button>
+      <button id="sampleBtn2">영상 없이 체험하기</button>
       <button class="btn-main" id="toStep2" disabled>다음: 시작 맞추기</button>
     </div>
     <p class="privacy">영상은 이 기기 안에서만 재생되며 어디에도 저장하거나 전송하지 않습니다.</p>
@@ -312,7 +320,9 @@
 <script>
 /* ============================================================
    종목 설정
-   - file: 저장소에 올린 시범 영상 이름 (확장자 제외)
+   - file(또는 files): 저장소에 올린 시범 영상 이름 (확장자 제외)
+     files는 앞에서부터 찾습니다. 예) ['스텝박스1', '스텝박스']
+   - group / short: 같은 group끼리는 버튼 하나로 묶이고 아래에 세부 동작 버튼이 생깁니다.
      예) file: '스쿼트'  →  스쿼트.mp4
      저장소 맨 위와 videos 폴더를 모두 찾고,
      .mp4 / .MP4 / .mov / .MOV 순서로 먼저 있는 파일을 씁니다.
@@ -346,27 +356,49 @@ const EXERCISES = [
     ]
   },
   {
-    id: 'stepbox', name: '스텝박스', file: '스텝박스',
+    id: 'stepbox-side', group: '스텝박스', short: '모둠발 좌우 넘기', name: '스텝박스 · 모둠발 좌우 넘기',
+    files: ['스텝박스1', '스텝박스'],
     phases: [
-      { name: '오르기', at: null, items: ['발바닥 전체를 박스 위에 올린다', '무릎이 안쪽으로 모이지 않는다'] },
-      { name: '박스 위', at: null, items: ['두 발로 서서 무릎과 엉덩이를 끝까지 편다'] },
-      { name: '내려오기', at: null, items: ['한 발씩 조절하며 내려온다', '뛰어내리지 않는다'] }
+      { name: '준비', at: null, items: ['박스 옆에 두 발을 모으고 선다', '무릎을 살짝 굽혀 뛸 준비를 한다'] },
+      { name: '점프', at: null, items: ['두 팔을 아래에서 위로 힘차게 치며 뛴다', '두 발을 모은 채 박스를 옆으로 넘는다', '발이 박스에 걸리지 않게 무릎을 끌어올린다'] },
+      { name: '착지', at: null, items: ['두 발이 동시에 앞꿈치부터 부드럽게 닿는다', '무릎을 굽혀 충격을 받아낸다'] },
+      { name: '리듬 잇기', at: null, items: ['멈추지 않고 바로 반대쪽으로 다시 넘는다', '넘을 때마다 팔치기와 점프의 박자가 일정하다'] }
+    ]
+  },
+  {
+    id: 'stepbox-over', group: '스텝박스', short: '모둠발 올라서 넘기', name: '스텝박스 · 모둠발 올라서 넘기',
+    files: ['스텝박스2', '스텝박스'],
+    phases: [
+      { name: '준비', at: null, items: ['박스 앞에 두 발을 모으고 선다', '팔을 뒤로 당기며 무릎과 엉덩이를 굽힌다'] },
+      { name: '올라서기', at: null, items: ['두 팔을 앞위로 힘차게 치며 뛰어오른다', '두 발이 동시에 박스 위에 발바닥 전체로 닿는다', '착지할 때 무릎이 안쪽으로 모이지 않는다'] },
+      { name: '넘어가기', at: null, items: ['박스 위에서 균형을 잡은 뒤 반대편으로 넘어간다', '내려갈 때도 팔을 함께 쳐서 몸을 띄운다'] },
+      { name: '착지·리듬', at: null, items: ['무릎을 굽혀 부드럽게 착지한다', '올라서기와 넘어가기가 일정한 리듬으로 이어진다'] }
+    ]
+  },
+  {
+    id: 'stepbox-step', group: '스텝박스', short: '한 발씩 오르내리기', name: '스텝박스 · 한 발씩 오르내리기',
+    files: ['스텝박스3', '스텝박스'],
+    phases: [
+      { name: '오르기', at: null, items: ['한 발의 발바닥 전체를 박스 위에 올린다', '올린 발로 바닥을 밀어 올라서고 무릎이 안쪽으로 모이지 않는다'] },
+      { name: '박스 위', at: null, items: ['두 발로 서서 무릎과 엉덩이를 끝까지 편다', '내려갈 방향으로 몸과 발끝을 미리 돌린다'] },
+      { name: '내려오기', at: null, items: ['한 발씩 조절하며 내려온다', '내려오면서 다음 스텝을 시작하기 쉬운 방향으로 몸을 전환한다'] },
+      { name: '리듬 잇기', at: null, items: ['오르기와 내려오기가 멈춤 없이 일정한 박자로 이어진다'] }
     ]
   },
   {
     id: 'situp', name: '싯업', file: '싯업',
     phases: [
       { name: '준비', at: null, items: ['무릎을 세우고 발바닥을 바닥에 붙인다', '등 전체가 바닥에 닿는다'] },
-      { name: '올라오기', at: null, items: ['반동 없이 배의 힘으로 일어난다', '손으로 목을 당기지 않는다', '어깨가 엉덩이 위까지 올라온다'] },
+      { name: '올라오기', at: null, items: ['반동 없이 배의 힘으로 일어난다', '손으로 목을 당기지 않는다', '상체를 끝까지 세워 앉은 자세가 된다'] },
       { name: '내려가기', at: null, items: ['등이 바닥에 닿을 때까지 천천히 내려간다'] }
     ]
   },
   {
     id: 'pushup', name: '푸시업', file: '푸시업',
     phases: [
-      { name: '준비', at: null, items: ['손을 어깨 바로 아래에 둔다', '머리부터 발뒤꿈치까지 일직선이다'] },
-      { name: '내려가기', at: null, items: ['가슴이 바닥 가까이 내려간다', '팔꿈치가 옆으로 크게 벌어지지 않는다'] },
-      { name: '올라오기', at: null, items: ['팔꿈치를 끝까지 편다', '엉덩이가 처지거나 들리지 않는다'] }
+      { name: '준비', at: null, items: ['손을 어깨 바로 아래에 둔다', '팔꿈치를 펴고 머리부터 발끝까지 곧게 선다'] },
+      { name: '내려가기', at: null, items: ['배와 무릎이 바닥에 완전히 닿을 때까지 내려간다', '팔꿈치가 옆으로 크게 벌어지지 않는다'] },
+      { name: '올라오기', at: null, items: ['팔꿈치를 끝까지 편다', '무릎이 바닥에서 떨어져 몸이 곧게 선다'] }
     ]
   },
   {
@@ -390,10 +422,12 @@ const EXERCISES = [
 
 // 파일 이름 후보: 한글 조합 방식(맥에서 올린 경우 포함)과 확장자 차이를 모두 시도
 function videoCandidates(ex) {
-  const names = [...new Set([ex.file.normalize('NFC'), ex.file.normalize('NFD')])];
   const exts = ['.mp4', '.MP4', '.mov', '.MOV'];
   const out = [];
-  VIDEO_DIRS.forEach(d => exts.forEach(e => names.forEach(n => out.push(d + encodeURIComponent(n) + e))));
+  (ex.files || [ex.file]).forEach(f => {
+    const names = [...new Set([f.normalize('NFC'), f.normalize('NFD')])];
+    VIDEO_DIRS.forEach(d => exts.forEach(e => names.forEach(n => out.push(d + encodeURIComponent(n) + e))));
+  });
   return out;
 }
 
@@ -431,20 +465,41 @@ function videoCandidates(ex) {
   // ------------------------------------------------------------
   // 종목
   // ------------------------------------------------------------
+  const lastInGroup = {};
   function renderExercises() {
     $('exRow').innerHTML = '';
+    const seen = new Set();
     EXERCISES.forEach(ex => {
+      if (ex.group && seen.has(ex.group)) return;
+      if (ex.group) seen.add(ex.group);
       const b = document.createElement('button');
-      b.textContent = ex.name;
-      b.setAttribute('aria-pressed', String(ex === state.ex));
-      b.addEventListener('click', () => selectExercise(ex));
+      b.textContent = ex.group || ex.name;
+      const on = ex.group ? state.ex.group === ex.group : ex === state.ex;
+      b.setAttribute('aria-pressed', String(on));
+      b.addEventListener('click', () => {
+        if (ex.group) selectExercise(lastInGroup[ex.group] || ex);
+        else selectExercise(ex);
+      });
       $('exRow').appendChild(b);
     });
+    const sub = $('subRow');
+    sub.innerHTML = '';
+    sub.classList.toggle('hidden', !state.ex.group);
+    if (state.ex.group) {
+      EXERCISES.filter(v => v.group === state.ex.group).forEach(v => {
+        const b = document.createElement('button');
+        b.textContent = v.short || v.name;
+        b.setAttribute('aria-pressed', String(v === state.ex));
+        b.addEventListener('click', () => selectExercise(v));
+        sub.appendChild(b);
+      });
+    }
   }
 
   function selectExercise(ex) {
     pauseAll();
     state.ex = ex;
+    if (ex.group) lastInGroup[ex.group] = ex;
     state.ds = 0;
     if (state.demoUrl) { URL.revokeObjectURL(state.demoUrl); state.demoUrl = null; }
     $('demoEmpty').classList.add('hidden');
@@ -469,7 +524,18 @@ function videoCandidates(ex) {
     }
     $('demoEmpty').classList.remove('hidden');
   });
-  demo.addEventListener('loadedmetadata', () => { $('demoEmpty').classList.add('hidden'); refresh(); });
+  demo.addEventListener('loadedmetadata', () => {
+    $('demoEmpty').classList.add('hidden');
+    // 체험 중에 종목을 바꾸면 내 영상 자리도 새 시범 영상으로
+    if (state.meIsSample && !state.demoUrl && me.src !== demo.currentSrc) {
+      state.meUrl = demo.currentSrc;
+      state.ms = 0;
+      me.src = state.meUrl;
+      me.load();
+      updateMarks();
+    }
+    refresh();
+  });
   me.addEventListener('loadedmetadata', refresh);
 
   // ------------------------------------------------------------
@@ -479,7 +545,9 @@ function videoCandidates(ex) {
     if (!file) return;
     if (file.type && !file.type.startsWith('video/')) { toast('영상 파일을 선택하세요'); return; }
     pauseAll();
-    if (state.meUrl) URL.revokeObjectURL(state.meUrl);
+    if (state.meUrl && state.meUrl.startsWith('blob:')) URL.revokeObjectURL(state.meUrl);
+    state.meIsSample = false;
+    $('meTag').textContent = '내 영상';
     state.meUrl = URL.createObjectURL(file);
     state.ms = 0;
     me.src = state.meUrl;
@@ -490,6 +558,30 @@ function videoCandidates(ex) {
     $('toStep2').disabled = false;
     updateMarks();
   }
+  function useSample() {
+    if (!ready(demo)) { toast('시범 영상이 준비된 종목에서 체험할 수 있습니다'); return; }
+    pauseAll();
+    if (state.meUrl && state.meUrl.startsWith('blob:')) URL.revokeObjectURL(state.meUrl);
+    state.meIsSample = true;
+    state.meUrl = demo.currentSrc;
+    state.ms = 0;
+    state.ds = 0;
+    $('meTag').textContent = '체험 영상 (시범과 같은 영상)';
+    me.src = state.meUrl;
+    me.load();
+    if (typeof resetPanSafe === 'function') resetPanSafe('me');
+    $('meEmpty').classList.add('hidden');
+    $('changeMeBtn').classList.remove('hidden');
+    $('toStep2').disabled = false;
+    updateMarks();
+    me.addEventListener('loadedmetadata', () => {
+      goStep(3);
+      playAll();
+      toast('체험 중입니다. 내 영상으로 해 보려면 1단계에서 영상을 바꾸세요');
+    }, { once: true });
+  }
+  $('sampleBtn').addEventListener('click', useSample);
+  $('sampleBtn2').addEventListener('click', useSample);
   $('pickBtn').addEventListener('click', () => $('pickInput').click());
   $('changeMeBtn').addEventListener('click', () => $('pickInput').click());
   $('shootBtn').addEventListener('click', () => $('shootInput').click());
